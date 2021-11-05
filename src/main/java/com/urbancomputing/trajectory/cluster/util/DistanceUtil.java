@@ -11,6 +11,13 @@ import com.urbancomputing.trajectory.cluster.model.Segment;
  */
 public class DistanceUtil {
     /**
+     * log2
+     */
+    public static double log2(double x) {
+        return Math.log(x) / Math.log(2);
+    }
+
+    /**
      * 计算两点内积
      */
     private static double computeInnerProduct(Point p1, Point p2) {
@@ -54,5 +61,12 @@ public class DistanceUtil {
             return 0.0;
         }
         return (Math.pow(distance1, 2) + Math.pow(distance2, 2)) / (distance1 + distance2);
+    }
+
+    /**
+     * 计算两线段之间的角度距离
+     */
+    public static double computeAngleDistance(Segment s1, Segment s2) {
+        return 0.0;
     }
 }

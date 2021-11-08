@@ -1,5 +1,6 @@
 package com.urbancomputing.trajectory.cluster.model;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -18,33 +19,33 @@ public class Trajectory {
     /**
      * 轨迹点
      */
-    private final Point[] points;
+    private final ArrayList<Point> points;
 
-    public Trajectory(String tid, Point[] points) {
+    public Trajectory(String tid, ArrayList<Point> points) {
         this.tid = tid;
         this.points = points;
     }
 
     public int getPointNumber() {
-        return points.length;
+        return points.size();
     }
 
     public Point getPoint(int i) {
-        return points[i];
+        return points.get(i);
     }
 
     public String getTid() {
         return tid;
     }
 
-    public Point[] getPoints() {
+    public ArrayList<Point> getPoints() {
         return points;
     }
 
     @Override
     public String toString() {
         return "LINESTRING (" +
-                Arrays.stream(points)
+                points.stream()
                         .map(pt -> pt.getLng() + " " + pt.getLat())
                         .collect(Collectors.joining(", ")) + ")";
     }

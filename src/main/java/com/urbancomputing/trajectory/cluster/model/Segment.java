@@ -17,9 +17,21 @@ public class Segment {
      */
     private final Point endPoint;
 
+    /**
+     * 轨迹标识
+     */
+    private final String tid;
+
     public Segment(Point startPoint, Point endPoint) {
         this.startPoint = startPoint;
         this.endPoint = endPoint;
+        this.tid = "default";
+    }
+
+    public Segment(Point startPoint, Point endPoint, String tid) {
+        this.startPoint = startPoint;
+        this.endPoint = endPoint;
+        this.tid = tid;
     }
 
     /**
@@ -35,6 +47,10 @@ public class Segment {
 
     public Point getEndPoint() {
         return endPoint;
+    }
+
+    public String getTid() {
+        return tid;
     }
 
     @Override

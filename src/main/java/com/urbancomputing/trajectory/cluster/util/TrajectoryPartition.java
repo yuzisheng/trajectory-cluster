@@ -16,17 +16,15 @@ import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.*;
  */
 public class TrajectoryPartition {
     private static final int MDL_COST_ADWANTAGE = 25;
+    private static final double MIN_SEGMENT_LENGTH = 50.0;
 
     /**
      * 待分段轨迹
      */
-    Trajectory traj;
+    private static Trajectory traj;
 
-    public TrajectoryPartition(Trajectory traj) {
-        this.traj = traj;
-    }
-
-    public ArrayList<Segment> partition() throws Exception {
+    public static ArrayList<Segment> partition(Trajectory t) throws Exception {
+        traj = t;
         int pointNumber = traj.getPointNumber();
         if (pointNumber < 2) {
             throw new Exception("待分段的轨迹至少应包含两个点");
@@ -51,33 +49,33 @@ public class TrajectoryPartition {
                     break;
                 }
             }
-        } while (startIndex + length <= pointNumber);
+        } while (startIndex + length < pointNumber);
 
         // 将终点加入特征点集
         characteristicPoints.add(traj.getPoint(pointNumber - 1));
 
         ArrayList<Segment> segments = new ArrayList<>();  // 分段后的线段集
-        for (int i = 1; i < characteristicPoints.size(); i++) {
-            segments.add(new Segment(characteristicPoints.get(i - 1), characteristicPoints.get(i)));
+        for (int i = 0; i < characteristicPoints.size() - 1; i++) {
+            Segment s = new Segment(characteristicPoints.get(i), characteristicPoints.get(i + 1), traj.getTid());
+            if (s.length() >= MIN_SEGMENT_LENGTH) {
+                segments.add(s);
+            }
         }
         return segments;
     }
 
-    private int computeModelCost(int startIndex, int endIndex) {
+    private static int computeModelCost(int startIndex, int endIndex) {
         Point startPoint = traj.getPoint(startIndex);
         Point endPoint = traj.getPoint(endIndex);
-        double distance = computeEuclideanDistance(startPoint, endPoint);
-        // 防止取对数后为负数
-        if (distance < 1.0) {
-            distance = 1.0;
-        }
+        double distance = computePointToPointDistance(startPoint, endPoint);
+        if (distance < 1.0) distance = 1.0;
         return (int) Math.ceil(log2(distance));
     }
 
-    private int computeEncodingCost(int startIndex, int endIndex) {
+    private static int computeEncodingCost(int startIndex, int endIndex) {
         Point characteristicStartPoint, characteristicEndPoint;
         Point trajStartPoint, trajEndPoint;
-        double perpendicularDistance, angleDistance;
+        double perDistance, angleDistance;
         int encodingCost = 0;
 
         characteristicStartPoint = traj.getPoint(startIndex);
@@ -88,12 +86,12 @@ public class TrajectoryPartition {
 
             Segment s1 = new Segment(characteristicStartPoint, characteristicEndPoint);
             Segment s2 = new Segment(trajStartPoint, trajEndPoint);
-            perpendicularDistance = computePerpendicularDistance(s1, s2);
+            perDistance = computePerpendicularDistance(s1, s2);
             angleDistance = computeAngleDistance(s1, s2);
 
-            if (perpendicularDistance < 1.0) perpendicularDistance = 1.0;
+            if (perDistance < 1.0) perDistance = 1.0;
             if (angleDistance < 1.0) angleDistance = 1.0;
-            encodingCost += ((int) Math.ceil(log2(perpendicularDistance)) + (int) Math.ceil(log2(angleDistance)));
+            encodingCost += ((int) Math.ceil(log2(perDistance)) + (int) Math.ceil(log2(angleDistance)));
         }
         return encodingCost;
     }

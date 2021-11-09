@@ -5,6 +5,7 @@ import com.urbancomputing.trajectory.cluster.model.Segment;
 import com.urbancomputing.trajectory.cluster.model.Trajectory;
 import com.urbancomputing.trajectory.cluster.util.TrajectoryDBScan;
 import com.urbancomputing.trajectory.cluster.util.TrajectoryPartition;
+import com.urbancomputing.trajectory.cluster.util.TrajectoryRepresentative;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -39,21 +40,19 @@ public class Test {
             trajs.add(traj);
         }
 
-        // 轨迹分段
-        ArrayList<Segment> partitionedSegments = TrajectoryPartition.partition(trajs.get(0));
-        assert partitionedSegments.size() == 186;
-
+        // 第一步：轨迹分段
         ArrayList<Segment> segments = new ArrayList<>();
         for (Trajectory traj : trajs) {
             segments.addAll(TrajectoryPartition.partition(traj));
         }
         assert segments.size() == 3373;
-
+        // 第二步：轨迹聚类
         ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, 25.0, 5);
-
+        // 第三步：特征轨迹
+        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, 5);
 
         // 轨迹可视化
-        TrajectoryFrame frame = new TrajectoryFrame(trajs, segments);
+        TrajectoryFrame frame = new TrajectoryFrame(trajs, null, representativeTrajs);
         frame.drawRawAndPartitionedTrajs();
     }
 }

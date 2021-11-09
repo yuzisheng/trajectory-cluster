@@ -22,15 +22,19 @@ public class TrajectoryFrame extends JFrame {
      * 原始轨迹
      */
     List<Trajectory> rawTrajs;
-
     /**
-     * 分段后的轨迹线段
+     * 轨迹分段
      */
-    List<Segment> partitionedSegments;
+    List<Segment> segments;
+    /**
+     * 特征轨迹
+     */
+    List<Trajectory> representativeTrajs;
 
-    public TrajectoryFrame(List<Trajectory> rawTrajs, List<Segment> partitionedSegments) {
+    public TrajectoryFrame(List<Trajectory> rawTrajs, List<Segment> segments, List<Trajectory> representativeTrajs) {
         this.rawTrajs = rawTrajs;
-        this.partitionedSegments = partitionedSegments;
+        this.segments = segments;
+        this.representativeTrajs = representativeTrajs;
     }
 
     public void drawRawAndPartitionedTrajs() {
@@ -38,7 +42,7 @@ public class TrajectoryFrame extends JFrame {
         JPanel p = new JavaPanel();
         this.setBounds(200, 200, 1200, 900);
         this.setContentPane(p);
-        this.setTitle("Raw and Partitioned Trajectories");
+        this.setTitle("轨迹可视化：绿色为原始轨迹，蓝色为分段轨迹，红色为特征轨迹");
         this.setVisible(true);
         this.setResizable(true);
         this.addWindowListener(new WindowAdapter() {
@@ -50,20 +54,35 @@ public class TrajectoryFrame extends JFrame {
         // 画原始轨迹
         Graphics g = p.getGraphics();
         p.paint(g);
-        for (Trajectory traj : rawTrajs) {
-            for (int i = 0; i < traj.getPointNumber() - 1; i++) {
-                Point startPoint = traj.getPoint(i);
-                Point endPoint = traj.getPoint(i + 1);
-                g.setColor(Color.GREEN);
+        if (rawTrajs != null) {
+            for (Trajectory traj : rawTrajs) {
+                for (int i = 0; i < traj.getPointNumber() - 1; i++) {
+                    Point startPoint = traj.getPoint(i);
+                    Point endPoint = traj.getPoint(i + 1);
+                    g.setColor(Color.GREEN);
+                    g.drawLine((int) startPoint.getLng(), (int) startPoint.getLat(), (int) endPoint.getLng(), (int) endPoint.getLat());
+                }
+            }
+        }
+        // 画轨迹分段
+        if (segments != null) {
+            for (int i = 0; i < segments.size() - 1; i++) {
+                Point startPoint = segments.get(i).getStartPoint();
+                Point endPoint = segments.get(i + 1).getEndPoint();
+                g.setColor(Color.BLUE);
                 g.drawLine((int) startPoint.getLng(), (int) startPoint.getLat(), (int) endPoint.getLng(), (int) endPoint.getLat());
             }
         }
-        // 画分段后轨迹
-        for (int i = 0; i < partitionedSegments.size() - 1; i++) {
-            Point startPoint = partitionedSegments.get(i).getStartPoint();
-            Point endPoint = partitionedSegments.get(i + 1).getEndPoint();
-            g.setColor(Color.BLUE);
-            g.drawLine((int) startPoint.getLng(), (int) startPoint.getLat(), (int) endPoint.getLng(), (int) endPoint.getLat());
+        // 画特征轨迹
+        if (representativeTrajs != null) {
+            for (Trajectory traj : representativeTrajs) {
+                for (int i = 0; i < traj.getPointNumber() - 1; i++) {
+                    Point startPoint = traj.getPoint(i);
+                    Point endPoint = traj.getPoint(i + 1);
+                    g.setColor(Color.RED);
+                    g.drawLine((int) startPoint.getLng(), (int) startPoint.getLat(), (int) endPoint.getLng(), (int) endPoint.getLat());
+                }
+            }
         }
     }
 }

@@ -13,14 +13,17 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 /**
- * 测试类
+ * Test
  *
  * @author yuzisheng
  * @date 2021/11/8
  */
 public class Test {
+    static int MDL_COST_WANTAGE = 25;
+    static double MIN_SEGMENT_LENGTH = 50.0;
+
     public static void main(String[] args) throws Exception {
-        // 初始化轨迹数据
+        // initialize data
         String filePath = "src/main/resources/elk_1993.txt";
         FileInputStream in = new FileInputStream(filePath);
         InputStreamReader reader = new InputStreamReader(in);
@@ -40,19 +43,21 @@ public class Test {
             trajs.add(traj);
         }
 
-        // 第一步：轨迹分段
+        // first: trajectory partition
         ArrayList<Segment> segments = new ArrayList<>();
         for (Trajectory traj : trajs) {
-            segments.addAll(TrajectoryPartition.partition(traj));
+            segments.addAll(TrajectoryPartition.partition(traj, MDL_COST_WANTAGE, MIN_SEGMENT_LENGTH));
         }
-        assert segments.size() == 3373;
-        // 第二步：轨迹聚类
+        if (segments.size() != 3373) {
+            throw new Exception("error encounter in the step of trajectory partition");
+        }
+        // second: trajectory cluster
         ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, 25.0, 5);
-        // 第三步：特征轨迹
-        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, 5);
+        // third: compute representative trajectory
+        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, MIN_SEGMENT_LENGTH, 5);
 
-        // 轨迹可视化
+        // trajectory visualization
         TrajectoryFrame frame = new TrajectoryFrame(trajs, null, representativeTrajs);
-        frame.drawRawAndPartitionedTrajs();
+        frame.draw();
     }
 }

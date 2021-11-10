@@ -10,40 +10,49 @@ import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.computeInn
 import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.computeVectorLength;
 
 /**
- * 特征轨迹计算
+ * compute representative trajectories
  *
  * @author yuzisheng
  * @date 2021/11/8
  */
 public class TrajectoryRepresentative {
-    static int POINT_DIM = 2;
-    static double MIN_SEGMENT_LENGTH = 50.0;
-    static int totalSegmentNumber;
+    /**
+     * dimension of point
+     */
+    static final int POINT_DIM = 2;
+    /**
+     * minimum length threshold to filter short segments
+     */
+    static double minSegmentLength;
+    /**
+     * minimum trajectory number for sweep line
+     */
+    static int minTrajNum;
+
     static List<Segment> segments;
     static List<Integer> clusterIds;
     static SegmentCluster[] segmentClusters;
-    static int minLns;
-    static double clusterRatio;
 
-    public static ArrayList<Trajectory> construct(List<Segment> segments, List<Integer> clusterIds, int minLns) {
+    public static ArrayList<Trajectory> construct(List<Segment> segments, List<Integer> clusterIds, double minSegmentLength, int minTrajNum) {
         TrajectoryRepresentative.segments = segments;
         TrajectoryRepresentative.clusterIds = clusterIds;
-        TrajectoryRepresentative.totalSegmentNumber = segments.size();
-        TrajectoryRepresentative.minLns = minLns;
+        TrajectoryRepresentative.minSegmentLength = minSegmentLength;
+        TrajectoryRepresentative.minTrajNum = minTrajNum;
 
-        int clusterNumber = (new HashSet<>(clusterIds)).size() - 1; // 噪音点除外
+        // noise is exclusive
+        int clusterNumber = (new HashSet<>(clusterIds)).size() - 1;
         TrajectoryRepresentative.segmentClusters = new SegmentCluster[clusterNumber];
-        // 初始化聚类数组
+        // initialize
         for (int i = 0; i < clusterNumber; i++) {
             segmentClusters[i] = new SegmentCluster();
             segmentClusters[i].clusterId = i;
             segmentClusters[i].segmentNumber = 0;
-            segmentClusters[i].trajectoryNumber = 0;
-            segmentClusters[i].clusterPointNumber = 0;
+            segmentClusters[i].trajNumber = 0;
+            segmentClusters[i].repPointNumber = 0;
             segmentClusters[i].enabled = false;
         }
 
-        for (int i = 0; i < totalSegmentNumber; i++) {
+        for (int i = 0; i < segments.size(); i++) {
             int clusterId = clusterIds.get(i);
             if (clusterId >= 0) {
                 for (int j = 0; j < POINT_DIM; j++) {
@@ -78,37 +87,31 @@ public class TrajectoryRepresentative {
         }
 
         // 统计线段簇信息
-        for (int i = 0; i < totalSegmentNumber; i++) {
+        for (int i = 0; i < segments.size(); i++) {
             if (clusterIds.get(i) >= 0) {
                 RegisterAndUpdateSegmentCluster(i);
             }
         }
 
-        Set<String> trajectories = new HashSet<>();
         for (int i = 0; i < clusterNumber; i++) {
-            SegmentCluster clusterEntry = (segmentClusters[i]);
-
-            //  聚类需包含一定轨迹条数
-            if (clusterEntry.trajectoryNumber >= minLns) {
+            SegmentCluster clusterEntry = segmentClusters[i];
+            // a cluster must contain a certain number of different trajectories
+            if (clusterEntry.trajNumber >= minTrajNum) {
                 clusterEntry.enabled = true;
-                //  DEBUG: count the number of trajectories that belong to clusters
-                trajectories.addAll(clusterEntry.trajectoryIds);
                 computeRepresentativeTrajectory(clusterEntry);
             } else {
                 clusterEntry.candidatePointList.clear();
-                clusterEntry.clusterPoints.clear();
-                clusterEntry.trajectoryIds.clear();
+                clusterEntry.repPoints.clear();
+                clusterEntry.trajIds.clear();
             }
-
         }
-        //  DEBUG: compute the ratio of trajectories that belong to clusters
-        clusterRatio = (double) trajectories.size() / 33.0;
 
+        // convert cluster to trajectory
         int newCurrClusterId = 0;
         ArrayList<Trajectory> representativeTrajs = new ArrayList<>();
         for (int i = 0; i < clusterNumber; i++) {
             if (segmentClusters[i].enabled) {
-                representativeTrajs.add(new Trajectory(Integer.toString(newCurrClusterId), segmentClusters[i].clusterPoints));
+                representativeTrajs.add(new Trajectory(Integer.toString(newCurrClusterId), segmentClusters[i].repPoints));
                 newCurrClusterId++;
             }
         }
@@ -170,8 +173,8 @@ public class TrajectoryRepresentative {
             }
 
             // 若扫描到轨迹数量达到阈值
-            if (segmentIds.size() >= minLns) {
-                if (Math.abs(candidatePoint.orderingValue - prevOrderingValue) > (MIN_SEGMENT_LENGTH / 1.414)) {
+            if (segmentIds.size() >= minTrajNum) {
+                if (Math.abs(candidatePoint.orderingValue - prevOrderingValue) > (minSegmentLength / 1.414)) {
                     computeAndRegisterClusterPoint(clusterEntry, candidatePoint.orderingValue, segmentIds);
                     prevOrderingValue = candidatePoint.orderingValue;
                     clusterPointNumber++;
@@ -186,12 +189,12 @@ public class TrajectoryRepresentative {
 
         // 至少包含两点才可形成特征轨迹
         if (clusterPointNumber >= 2) {
-            clusterEntry.clusterPointNumber = clusterPointNumber;
+            clusterEntry.repPointNumber = clusterPointNumber;
         } else {
             clusterEntry.enabled = false;
             clusterEntry.candidatePointList.clear();
-            clusterEntry.clusterPoints.clear();
-            clusterEntry.trajectoryIds.clear();
+            clusterEntry.repPoints.clear();
+            clusterEntry.trajIds.clear();
         }
     }
 
@@ -217,7 +220,7 @@ public class TrajectoryRepresentative {
         clusterPoint.setCoord(1, origY);
 
         // register the obtained cluster point (i.e., the average of all the sweep points)
-        clusterEntry.clusterPoints.add(clusterPoint);
+        clusterEntry.repPoints.add(clusterPoint);
     }
 
     private static void getSweepPointOfSegment(SegmentCluster clusterEntry, double currValue, int lineSegmentId, Point sweepPoint) {
@@ -291,9 +294,9 @@ public class TrajectoryRepresentative {
         }
 
         String tid = segments.get(segmentIndex).getTid();
-        if (!clusterEntry.trajectoryIds.contains(tid)) {
-            clusterEntry.trajectoryIds.add(tid);
-            clusterEntry.trajectoryNumber++;
+        if (!clusterEntry.trajIds.contains(tid)) {
+            clusterEntry.trajIds.add(tid);
+            clusterEntry.trajNumber++;
         }
     }
 
@@ -314,47 +317,47 @@ public class TrajectoryRepresentative {
     }
 
     /**
-     * 线段簇，表示属于同一聚类的线段集合
+     * Segment Cluster Class
      */
     static class SegmentCluster {
         /**
-         * 聚类标识
+         * cluster id
          */
         int clusterId;
         /**
-         * 线段数量
+         * the number of segments
          */
         int segmentNumber;
         /**
-         * 轨迹数量
+         * the number of trajectories
          */
-        int trajectoryNumber;
+        int trajNumber;
         /**
-         * 轨迹标识列表
+         * ids of containing trajectories
          */
-        ArrayList<String> trajectoryIds = new ArrayList<>();
+        ArrayList<String> trajIds = new ArrayList<>();
         /**
-         * 特征轨迹点数量
+         * ths number of representative points
          */
-        int clusterPointNumber;
+        int repPointNumber;
         /**
-         * 特征轨迹点列表
+         * representative points
          */
-        ArrayList<Point> clusterPoints = new ArrayList<>();
+        ArrayList<Point> repPoints = new ArrayList<>();
         /**
-         * 候选点
+         * candidate cluster point
          */
         ArrayList<CandidateClusterPoint> candidatePointList = new ArrayList<>();
         /**
-         * 是否包含最少轨迹条数
+         * can form a representative trajectory or not
          */
         boolean enabled;
         /**
-         * 平均方向向量
+         * average direction vector
          */
         double[] avgDirectionVector = new double[2];
         /**
-         * 其它中间变量
+         * other temp variable
          */
         double cosTheta, sinTheta;
     }
@@ -362,13 +365,12 @@ public class TrajectoryRepresentative {
     static class CandidateClusterPoint {
         double orderingValue;
         /**
-         * 线段标识，即线段下标索引
+         * the id of segment
          */
         int segmentId;
         /**
-         * 是否为起点
+         * is a start point
          */
         boolean startPointFlag;
     }
-
 }

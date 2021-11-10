@@ -1,24 +1,22 @@
 package com.urbancomputing.trajectory.cluster.model;
 
 /**
- * 线段类
+ * Segment Class
  *
  * @author yuzisheng
  * @date 2021/11/5
  */
 public class Segment {
     /**
-     * 起点
+     * start point
      */
     private final Point startPoint;
-
     /**
-     * 终点
+     * end point
      */
     private final Point endPoint;
-
     /**
-     * 轨迹标识
+     * id of the trajectory containing this segment
      */
     private final String tid;
 
@@ -35,7 +33,7 @@ public class Segment {
     }
 
     /**
-     * 计算线段长度
+     * length of this segment
      */
     public double length() {
         return Math.sqrt(Math.pow(startPoint.getLng() - endPoint.getLng(), 2) + Math.pow(startPoint.getLat() - endPoint.getLat(), 2));

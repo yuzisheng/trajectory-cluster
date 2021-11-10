@@ -1,23 +1,21 @@
 package com.urbancomputing.trajectory.cluster.model;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /**
- * 轨迹类
+ * Trajectory Class
  *
  * @author yuzisheng
  * @date 2021/11/5
  */
 public class Trajectory {
     /**
-     * 轨迹标识
+     * trajectory id
      */
     private final String tid;
-
     /**
-     * 轨迹点
+     * trajectory points
      */
     private final ArrayList<Point> points;
 

@@ -4,17 +4,22 @@ import com.urbancomputing.trajectory.cluster.model.Point;
 import com.urbancomputing.trajectory.cluster.model.Segment;
 
 /**
- * 距离计算工具类
+ * distance util
  *
  * @author yuzisheng
  * @date 2021/11/5
  */
 public class DistanceUtil {
-    // 距离计算相关变量
-    static int pointDim = 2;
+    /**
+     * dimension of point
+     */
+    static final int POINT_DIM = 2;
+    /**
+     * temp variable
+     */
+    static double coefficient;
     static double[] vector1 = new double[2];
     static double[] vector2 = new double[2];
-    static double coefficient;
     static Point projectionPoint = new Point();
 
     public static double log2(double x) {
@@ -22,7 +27,7 @@ public class DistanceUtil {
     }
 
     /**
-     * 计算向量长度
+     * compute vector length
      */
     public static double computeVectorLength(double[] vector) {
         double squareSum = 0.0;
@@ -33,7 +38,7 @@ public class DistanceUtil {
     }
 
     /**
-     * 计算两向量内积
+     * compute inner product of two vectors
      */
     public static double computeInnerProduct(double[] v1, double[] v2) {
         int vectorDim = v1.length;
@@ -45,14 +50,14 @@ public class DistanceUtil {
     }
 
     /**
-     * 计算两点之间的欧式距离
+     * compute euclidean distance between two points
      */
     public static double computePointToPointDistance(Point p1, Point p2) {
         return Math.sqrt(Math.pow(p1.getLng() - p2.getLng(), 2) + Math.pow(p1.getLat() - p2.getLat(), 2));
     }
 
     /**
-     * 计算两线段之间的垂直距离
+     * compute perpendicular distance between two segments
      */
     public static double computePerpendicularDistance(Segment s1, Segment s2) {
         if (s1.length() < s2.length()) {
@@ -69,10 +74,10 @@ public class DistanceUtil {
     }
 
     /**
-     * 计算两线段之间的角度距离
+     * compute angle distance between two segments
      */
     public static double computeAngleDistance(Segment s1, Segment s2) {
-        for (int i = 0; i < pointDim; i++) {
+        for (int i = 0; i < POINT_DIM; i++) {
             vector1[i] = s1.getEndPoint().getCoord(i) - s1.getStartPoint().getCoord(i);
             vector2[i] = s2.getEndPoint().getCoord(i) - s2.getStartPoint().getCoord(i);
         }
@@ -89,31 +94,13 @@ public class DistanceUtil {
     }
 
     /**
-     * 计算点到线段的距离
-     */
-    private static double computePointToSegmentDistance(Point p, Segment s) {
-        Point p1 = s.getStartPoint();
-        Point p2 = s.getEndPoint();
-        for (int i = 0; i < pointDim; i++) {
-            vector1[i] = p.getCoord(i) - p1.getCoord(i);
-            vector2[i] = p2.getCoord(i) - p1.getCoord(i);
-        }
-        coefficient = computeInnerProduct(vector1, vector2) / computeInnerProduct(vector2, vector2);
-        for (int i = 0; i < pointDim; i++) {
-            projectionPoint.setCoord(i, p1.getCoord(i) + coefficient * vector2[i]);
-        }
-        return computePointToPointDistance(p, projectionPoint);
-    }
-
-    /**
-     * 计算两线段之间的距离
+     * compute distance between two segments
      */
     public static double computeSegmentToSegmentDistance(Segment s1, Segment s2) {
         double perDistance;
         double parDistance;
         double angleDistance;
 
-        // 令s1为较长的线段
         double segmentLength1 = s1.length();
         double segmentLength2 = s2.length();
         if (segmentLength1 < segmentLength2) {
@@ -137,18 +124,35 @@ public class DistanceUtil {
             parDistance2 = computePointToPointDistance(s1.getEndPoint(), projectionPoint);
         }
 
-        // 计算垂直距离Perpendicular Distance: (d1^2 + d2^2) / (d1 + d2)
+        // perpendicular distance: (d1^2 + d2^2) / (d1 + d2)
         if (!(perDistance1 == 0.0 && perDistance2 == 0.0)) {
             perDistance = ((Math.pow(perDistance1, 2) + Math.pow(perDistance2, 2)) / (perDistance1 + perDistance2));
         } else {
             perDistance = 0.0;
         }
 
-        // 计算平行距离Parallel Distance: min(d1, d2)
+        // parallel distance: min(d1, d2)
         parDistance = Math.min(parDistance1, parDistance2);
 
-        // 计算角度距离Angle Distance
+        // Angle Distance
         angleDistance = computeAngleDistance(s1, s2);
         return (perDistance + parDistance + angleDistance);
+    }
+
+    /**
+     * compute distance from point to segment
+     */
+    private static double computePointToSegmentDistance(Point p, Segment s) {
+        Point p1 = s.getStartPoint();
+        Point p2 = s.getEndPoint();
+        for (int i = 0; i < POINT_DIM; i++) {
+            vector1[i] = p.getCoord(i) - p1.getCoord(i);
+            vector2[i] = p2.getCoord(i) - p1.getCoord(i);
+        }
+        coefficient = computeInnerProduct(vector1, vector2) / computeInnerProduct(vector2, vector2);
+        for (int i = 0; i < POINT_DIM; i++) {
+            projectionPoint.setCoord(i, p1.getCoord(i) + coefficient * vector2[i]);
+        }
+        return computePointToPointDistance(p, projectionPoint);
     }
 }

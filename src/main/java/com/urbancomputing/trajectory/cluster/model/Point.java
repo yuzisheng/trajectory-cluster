@@ -1,19 +1,18 @@
 package com.urbancomputing.trajectory.cluster.model;
 
 /**
- * 点类
+ * Point Class
  *
  * @author yuzisheng
  * @date 2021/11/5
  */
 public class Point {
     /**
-     * 经度
+     * longitude or x
      */
     private double lng;
-
     /**
-     * 纬度
+     * latitude or y
      */
     private double lat;
 

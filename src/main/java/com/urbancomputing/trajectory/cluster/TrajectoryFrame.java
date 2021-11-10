@@ -12,22 +12,22 @@ import java.awt.event.WindowEvent;
 import java.util.List;
 
 /**
- * 轨迹可视化
+ * trajectory visualization
  *
  * @author yuzisheng
  * @date 2021/11/8
  */
 public class TrajectoryFrame extends JFrame {
     /**
-     * 原始轨迹
+     * raw trajectories
      */
     List<Trajectory> rawTrajs;
     /**
-     * 轨迹分段
+     * partitioned segments
      */
     List<Segment> segments;
     /**
-     * 特征轨迹
+     * representative trajectories
      */
     List<Trajectory> representativeTrajs;
 
@@ -37,12 +37,12 @@ public class TrajectoryFrame extends JFrame {
         this.representativeTrajs = representativeTrajs;
     }
 
-    public void drawRawAndPartitionedTrajs() {
-        // 初始化窗口
+    public void draw() {
+        // initialize
         JPanel p = new JavaPanel();
         this.setBounds(200, 200, 1200, 900);
         this.setContentPane(p);
-        this.setTitle("轨迹可视化：绿色为原始轨迹，蓝色为分段轨迹，红色为特征轨迹");
+        this.setTitle("Trajectory Visualization: Green is raw trajs, Blue are partitioned segments, Red are representative trajs -- Zisheng Yu");
         this.setVisible(true);
         this.setResizable(true);
         this.addWindowListener(new WindowAdapter() {
@@ -50,10 +50,10 @@ public class TrajectoryFrame extends JFrame {
                 System.exit(0);
             }
         });
-
-        // 画原始轨迹
         Graphics g = p.getGraphics();
         p.paint(g);
+
+        // draw raw trajs
         if (rawTrajs != null) {
             for (Trajectory traj : rawTrajs) {
                 for (int i = 0; i < traj.getPointNumber() - 1; i++) {
@@ -64,7 +64,7 @@ public class TrajectoryFrame extends JFrame {
                 }
             }
         }
-        // 画轨迹分段
+        // draw partitioned segments
         if (segments != null) {
             for (int i = 0; i < segments.size() - 1; i++) {
                 Point startPoint = segments.get(i).getStartPoint();
@@ -73,7 +73,7 @@ public class TrajectoryFrame extends JFrame {
                 g.drawLine((int) startPoint.getLng(), (int) startPoint.getLat(), (int) endPoint.getLng(), (int) endPoint.getLat());
             }
         }
-        // 画特征轨迹
+        // draw representative trajs
         if (representativeTrajs != null) {
             for (Trajectory traj : representativeTrajs) {
                 for (int i = 0; i < traj.getPointNumber() - 1; i++) {

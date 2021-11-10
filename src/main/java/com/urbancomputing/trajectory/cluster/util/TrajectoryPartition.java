@@ -9,83 +9,103 @@ import java.util.ArrayList;
 import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.*;
 
 /**
- * 轨迹分段
+ * trajectory partition
  *
  * @author yuzisheng
  * @date 2021/11/5
  */
 public class TrajectoryPartition {
-    private static final int MDL_COST_ADWANTAGE = 25;
-    private static final double MIN_SEGMENT_LENGTH = 50.0;
-
     /**
-     * 待分段轨迹
+     * raw trajectory
      */
     private static Trajectory traj;
+    /**
+     * wantage to make up no partition mdl cost
+     */
+    private static int mldCostWantage;
+    /**
+     * minimum length threshold to filter short segments
+     */
+    private static double minSegmentLength;
 
-    public static ArrayList<Segment> partition(Trajectory t) throws Exception {
-        traj = t;
+    public static ArrayList<Segment> partition(Trajectory traj, int mldCostWantage, double minSegmentLength) throws Exception {
+        TrajectoryPartition.traj = traj;
+        TrajectoryPartition.mldCostWantage = mldCostWantage;
+        TrajectoryPartition.minSegmentLength = minSegmentLength;
+
         int pointNumber = traj.getPointNumber();
         if (pointNumber < 2) {
-            throw new Exception("待分段的轨迹至少应包含两个点");
+            throw new Exception("trajectory to be partitioned shall contain at least two points");
         }
 
-        ArrayList<Point> characteristicPoints = new ArrayList<>();  // 轨迹特征点集
-        // 将起点加入特征点集
+        ArrayList<Point> characteristicPoints = new ArrayList<>();
+        // first: add the start point
         characteristicPoints.add(traj.getPoint(0));
 
-        int startIndex = 0, length;
-        int fullPartitionMDLCost, partialPartitionMDLCost;
+        // second: check each point
+        int startIndex = 0, length = 1, currIndex;
+        int parMDLCost, noParMDLCost;
         do {
-            fullPartitionMDLCost = 0;
-            for (length = 1; startIndex + length < pointNumber; length++) {
-                fullPartitionMDLCost += computeModelCost(startIndex + length - 1, startIndex + length);
-                partialPartitionMDLCost = computeModelCost(startIndex, startIndex + length) + computeEncodingCost(startIndex, startIndex + length);
-
-                if (fullPartitionMDLCost + MDL_COST_ADWANTAGE < partialPartitionMDLCost) {
-                    characteristicPoints.add(traj.getPoint(startIndex + length - 1));
-                    startIndex = startIndex + length - 1;
-                    length = 0;
-                    break;
-                }
+            currIndex = startIndex + length;
+            // MDLCost = L(H) + L(D|H)
+            parMDLCost = computeParModelCost(startIndex, currIndex) + computeEncodingCost(startIndex, currIndex);
+            // L(D|H)=0 when there is no characteristic point between pi and pj
+            noParMDLCost = computeNoParModelCost(startIndex, currIndex);
+            if (parMDLCost > noParMDLCost + TrajectoryPartition.mldCostWantage) {
+                characteristicPoints.add(traj.getPoint(currIndex - 1));
+                startIndex = currIndex - 1;
+                length = 1;
+            } else {
+                length += 1;
             }
         } while (startIndex + length < pointNumber);
 
-        // 将终点加入特征点集
+        // third: add the end point
         characteristicPoints.add(traj.getPoint(pointNumber - 1));
 
-        ArrayList<Segment> segments = new ArrayList<>();  // 分段后的线段集
+        ArrayList<Segment> segments = new ArrayList<>();
         for (int i = 0; i < characteristicPoints.size() - 1; i++) {
             Segment s = new Segment(characteristicPoints.get(i), characteristicPoints.get(i + 1), traj.getTid());
-            if (s.length() >= MIN_SEGMENT_LENGTH) {
+            if (s.length() >= TrajectoryPartition.minSegmentLength) {
                 segments.add(s);
             }
         }
         return segments;
     }
 
-    private static int computeModelCost(int startIndex, int endIndex) {
-        Point startPoint = traj.getPoint(startIndex);
-        Point endPoint = traj.getPoint(endIndex);
-        double distance = computePointToPointDistance(startPoint, endPoint);
+    /**
+     * compute L(H) assuming pi and pj are only two characteristic points
+     */
+    private static int computeParModelCost(int i, int j) {
+        double distance = computePointToPointDistance(traj.getPoint(i), traj.getPoint(j));
         if (distance < 1.0) distance = 1.0;
         return (int) Math.ceil(log2(distance));
     }
 
-    private static int computeEncodingCost(int startIndex, int endIndex) {
-        Point characteristicStartPoint, characteristicEndPoint;
-        Point trajStartPoint, trajEndPoint;
-        double perDistance, angleDistance;
+    /**
+     * compute L(H) assuming no characteristic point between pi and pj
+     */
+    private static int computeNoParModelCost(int i, int j) {
+        int modelCost = 0;
+        double distance;
+        for (int k = i; k < j; k++) {
+            distance = computePointToPointDistance(traj.getPoint(k), traj.getPoint(k + 1));
+            if (distance < 1.0) distance = 1.0;
+            modelCost += (int) Math.ceil(log2(distance));
+        }
+        return modelCost;
+    }
+
+    /**
+     * compute L(D|H) assuming pi and pj are only two characteristic points
+     */
+    private static int computeEncodingCost(int i, int j) {
         int encodingCost = 0;
-
-        characteristicStartPoint = traj.getPoint(startIndex);
-        characteristicEndPoint = traj.getPoint(endIndex);
-        for (int i = startIndex; i < endIndex; i++) {
-            trajStartPoint = traj.getPoint(i);
-            trajEndPoint = traj.getPoint(i + 1);
-
-            Segment s1 = new Segment(characteristicStartPoint, characteristicEndPoint);
-            Segment s2 = new Segment(trajStartPoint, trajEndPoint);
+        Segment s1 = new Segment(traj.getPoint(i), traj.getPoint(j));
+        Segment s2;
+        double perDistance, angleDistance;
+        for (int k = i; k < j; k++) {
+            s2 = new Segment(traj.getPoint(k), traj.getPoint(k + 1));
             perDistance = computePerpendicularDistance(s1, s2);
             angleDistance = computeAngleDistance(s1, s2);
 

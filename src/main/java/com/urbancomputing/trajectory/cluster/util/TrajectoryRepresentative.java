@@ -21,23 +21,32 @@ public class TrajectoryRepresentative {
      */
     static final int POINT_DIM = 2;
     /**
-     * minimum length threshold to filter short segments
+     * minimum trajectory number for a cluster to construct representative trajectory
      */
-    static double minSegmentLength;
+    static int minTrajNumForCluster;
     /**
-     * minimum trajectory number for sweep line
+     * minimum segment number for sweep line to construct representative points (minLns in the paper)
      */
-    static int minTrajNum;
+    static int minSegmentNumForSweep;
+    /**
+     * minimum smoothing length to filter close representative points (gamma in the paper)
+     */
+    static double minSmoothingLength;
 
     static List<Segment> segments;
     static List<Integer> clusterIds;
     static SegmentCluster[] segmentClusters;
 
-    public static ArrayList<Trajectory> construct(List<Segment> segments, List<Integer> clusterIds, double minSegmentLength, int minTrajNum) {
+    public static ArrayList<Trajectory> construct(List<Segment> segments,
+                                                  List<Integer> clusterIds,
+                                                  double minSmoothingLength,
+                                                  int minTrajNumForCluster,
+                                                  int minSegmentNumForSweep) {
         TrajectoryRepresentative.segments = segments;
         TrajectoryRepresentative.clusterIds = clusterIds;
-        TrajectoryRepresentative.minSegmentLength = minSegmentLength;
-        TrajectoryRepresentative.minTrajNum = minTrajNum;
+        TrajectoryRepresentative.minSmoothingLength = minSmoothingLength;
+        TrajectoryRepresentative.minTrajNumForCluster = minTrajNumForCluster;
+        TrajectoryRepresentative.minSegmentNumForSweep = minSegmentNumForSweep;
 
         // noise is exclusive
         int clusterNumber = (new HashSet<>(clusterIds)).size() - 1;
@@ -48,8 +57,6 @@ public class TrajectoryRepresentative {
             segmentClusters[i] = new SegmentCluster();
             segmentClusters[i].clusterId = i;
             segmentClusters[i].segmentNumber = 0;
-            segmentClusters[i].trajNumber = 0;
-            segmentClusters[i].repPointNumber = 0;
             segmentClusters[i].enabled = false;
         }
 
@@ -90,33 +97,42 @@ public class TrajectoryRepresentative {
             clusterEntry.sinTheta = sinTheta;
         }
 
-        // third: update candidate point info for each cluster
+        // third: rotate axis and update for each cluster
         for (int i = 0; i < segments.size(); i++) {
             if (clusterIds.get(i) >= 0) {
-                updateClusterCandPoints(i);
+                SegmentCluster clusterEntry = segmentClusters[clusterIds.get(i)];
+                Segment segment = segments.get(i);
+                double rotatedX1 = GET_X_ROTATION(segment.getCoord(0), segment.getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
+                double rotatedX2 = GET_X_ROTATION(segment.getCoord(2), segment.getCoord(3), clusterEntry.cosTheta, clusterEntry.sinTheta);
+                clusterEntry.rotatedPoints.add(new RotatedPoint(rotatedX1, i));
+                clusterEntry.rotatedPoints.add(new RotatedPoint(rotatedX2, i));
+
+                clusterEntry.clusterRotatedSegments.add(new RotatedSegment(rotatedX1, rotatedX2, i));
+                clusterEntry.trajIds.add(segment.getTid());
             }
+        }
+        // sort by x value of rotated point
+        Comparator<RotatedPoint> comparator = Comparator.comparingDouble(o -> o.rotatedX);
+        for (SegmentCluster clusterEntry : segmentClusters) {
+            clusterEntry.rotatedPoints.sort(comparator);
         }
 
         // fourth: compute representative trajectory for each cluster
         for (int i = 0; i < clusterNumber; i++) {
             SegmentCluster clusterEntry = segmentClusters[i];
             // a cluster must contain a certain number of different trajectories
-            if (clusterEntry.trajNumber >= minTrajNum) {
+            if (clusterEntry.trajIds.size() >= minTrajNumForCluster) {
                 clusterEntry.enabled = true;
                 computeRepresentativeTrajectory(clusterEntry);
-            } else {
-                clusterEntry.candidatePoints.clear();
-                clusterEntry.repPoints.clear();
-                clusterEntry.trajIds.clear();
             }
         }
 
-        // convert cluster to trajectory
+        // fifth: convert cluster to trajectory
         int newCurrClusterId = 0;
         ArrayList<Trajectory> representativeTrajs = new ArrayList<>();
         for (int i = 0; i < clusterNumber; i++) {
             if (segmentClusters[i].enabled) {
-                representativeTrajs.add(new Trajectory(Integer.toString(newCurrClusterId), segmentClusters[i].repPoints));
+                representativeTrajs.add(new Trajectory(Integer.toString(newCurrClusterId), segmentClusters[i].representativePoints));
                 newCurrClusterId++;
             }
         }
@@ -127,96 +143,46 @@ public class TrajectoryRepresentative {
      * compute representative trajectory
      */
     private static void computeRepresentativeTrajectory(SegmentCluster clusterEntry) {
-        Set<Integer> segmentIds = new HashSet<>();
-        Set<Integer> insertionSegmentIds = new HashSet<>();
-        Set<Integer> deletionSegmentIds = new HashSet<>();
-
-        int iter = 0;
-        CandidatePoint candidatePoint, nextCandidatePoint;
-        double prevOrderingValue = 0.0;
-        int clusterPointNumber = 0;
-
-        // 扫描线
-        while (iter != (clusterEntry.candidatePoints.size() - 1) && clusterEntry.candidatePoints.size() > 0) {
-            insertionSegmentIds.clear();
-            deletionSegmentIds.clear();
-            do {
-                candidatePoint = clusterEntry.candidatePoints.get(iter);
-                iter++;
-                //  check whether this segment has begun or not
-                if (!segmentIds.contains(candidatePoint.segmentId)) {
-                    insertionSegmentIds.add(candidatePoint.segmentId);        //  this line segment begins at this point
-                    segmentIds.add(candidatePoint.segmentId);
-                } else {
-                    deletionSegmentIds.add(candidatePoint.segmentId);        //  this line segment ends at this point
-                }
-                //  check whether the next segment begins or ends at the same point
-                if (iter != (clusterEntry.candidatePoints.size() - 1)) {
-                    nextCandidatePoint = clusterEntry.candidatePoints.get(iter);
-                } else {
-                    break;
-                }
-            } while (candidatePoint.rotatedX == nextCandidatePoint.rotatedX);
-
-            // 检查线段是否与另一线段在同一轨迹中连接，若是则删除一个以避免重复
-            for (int iter2 = 0; iter2 < insertionSegmentIds.size(); iter2++) {
-                for (int iter3 = 0; iter3 < deletionSegmentIds.size(); iter3++) {
-                    int a = (Integer) (insertionSegmentIds.toArray()[iter2]);
-                    int b = (Integer) (deletionSegmentIds.toArray()[iter3]);
-                    if (a == b) {
-                        segmentIds.remove((Integer) (deletionSegmentIds.toArray()[iter3]));
-                        deletionSegmentIds.remove((Integer) (deletionSegmentIds.toArray()[iter3]));
-                        break;
-                    }
-                }
-
-                for (int iter3 = 0; iter3 < deletionSegmentIds.size(); iter3++) {
-                    if (Objects.equals(segments.get((Integer) (insertionSegmentIds.toArray()[iter2])).getTid(),
-                            segments.get((Integer) (deletionSegmentIds.toArray()[iter3])).getTid())) {
-                        segmentIds.remove((Integer) (deletionSegmentIds.toArray()[iter3]));
-                        deletionSegmentIds.remove((Integer) (deletionSegmentIds.toArray()[iter3]));
-                        break;
-                    }
+        int sweepSegmentNum;
+        double prevRotatedX = 0.0;
+        HashSet<Integer> sweepSegmentIds = new HashSet<>();
+        // sweep for each rotated point (sort by x value)
+        for (RotatedPoint rp : clusterEntry.rotatedPoints) {
+            sweepSegmentNum = 0;
+            sweepSegmentIds.clear();
+            // count the number of segments that contain x value of rotated point
+            for (RotatedSegment rs : clusterEntry.clusterRotatedSegments) {
+                if (rs.rotatedStartX <= rp.rotatedX && rp.rotatedX <= rs.rotatedEndX ||
+                        rs.rotatedEndX <= rp.rotatedX && rp.rotatedX <= rs.rotatedStartX) {
+                    sweepSegmentNum++;
+                    sweepSegmentIds.add(rs.segmentId);
                 }
             }
-
-            // 若扫描到轨迹数量达到阈值
-            if (segmentIds.size() >= minTrajNum) {
-                if (Math.abs(candidatePoint.rotatedX - prevOrderingValue) > (minSegmentLength / 1.414)) {
-                    computeAndAddRepPoint(clusterEntry, candidatePoint.rotatedX, segmentIds);
-                    prevOrderingValue = candidatePoint.rotatedX;
-                    clusterPointNumber++;
+            // if sweep enough segments
+            if (sweepSegmentNum >= minSegmentNumForSweep) {
+                // filter close representative points
+                if (Math.abs(rp.rotatedX - prevRotatedX) >= minSmoothingLength) {
+                    Point repPoint = getRepresentativePoint(clusterEntry, rp.rotatedX, sweepSegmentIds);
+                    clusterEntry.representativePoints.add(repPoint);
+                    prevRotatedX = rp.rotatedX;
                 }
-            }
-
-            // 删除不与其它线段相连的线段
-            for (int iter3 = 0; iter3 < deletionSegmentIds.size(); iter3++) {
-                segmentIds.remove((Integer) (deletionSegmentIds.toArray()[iter3]));
             }
         }
-
         // a trajectory must have at least two points
-        if (clusterPointNumber >= 2) {
-            clusterEntry.repPointNumber = clusterPointNumber;
-        } else {
-            clusterEntry.enabled = false;
-            clusterEntry.candidatePoints.clear();
-            clusterEntry.repPoints.clear();
-            clusterEntry.trajIds.clear();
-        }
+        if (clusterEntry.representativePoints.size() < 2) clusterEntry.enabled = false;
     }
 
     /**
-     * compute representative point and add it to cluster result
+     * get representative point
      */
-    private static void computeAndAddRepPoint(SegmentCluster clusterEntry, double currXValue, Set<Integer> segmentIds) {
+    private static Point getRepresentativePoint(SegmentCluster clusterEntry, double currX, Set<Integer> segmentIds) {
         int sweepSegmentNumber = segmentIds.size();
         Point representativePoint = new Point();
         Point sweepPoint;
 
         // compute the average of all the sweep points: x=(x1+x2+...+xn)/n
-        for (int segmentId: segmentIds) {
-            sweepPoint = getSweepPointOfSegment(clusterEntry, currXValue, segmentId);
+        for (int segmentId : segmentIds) {
+            sweepPoint = getSweepPointOfSegment(clusterEntry, currX, segmentId);
             for (int i = 0; i < POINT_DIM; i++) {
                 representativePoint.setCoord(i, representativePoint.getCoord(i) + sweepPoint.getCoord(i) / sweepSegmentNumber);
             }
@@ -228,7 +194,7 @@ public class TrajectoryRepresentative {
         representativePoint.setCoord(0, origX);
         representativePoint.setCoord(1, origY);
 
-        clusterEntry.repPoints.add(representativePoint);
+        return representativePoint;
     }
 
     /**
@@ -242,71 +208,6 @@ public class TrajectoryRepresentative {
         double rotatedY2 = GET_Y_ROTATION(segment.getEndPoint().getCoord(0), segment.getEndPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
         double coefficient = (currXValue - rotatedX1) / (rotatedX2 - rotatedX1);
         return new Point(currXValue, rotatedY1 + coefficient * (rotatedY2 - rotatedY1));
-    }
-
-    /**
-     * insert start and end point of this segment to candidate points and keep it in order by rotated x-axis
-     */
-    private static void updateClusterCandPoints(int segmentId) {
-        int clusterId = clusterIds.get(segmentId);
-        SegmentCluster clusterEntry = segmentClusters[clusterId];
-        Segment segment = segments.get(segmentId);
-
-        // 1. rotate x-axis
-        double rotatedX1 = GET_X_ROTATION(segment.getStartPoint().getCoord(0),
-                segment.getStartPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
-        double rotatedX2 = GET_X_ROTATION(segment.getEndPoint().getCoord(0),
-                segment.getEndPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
-
-        // 2. sort points by rotated x value: here use insert sort algorithm to insert new points (start and end points of this segment)
-        // 2.1 find the first point whose x value is greater than rotated x1
-        int iter1 = 0, i;
-        for (i = 0; i < clusterEntry.candidatePoints.size(); i++) {
-            if (clusterEntry.candidatePoints.get(iter1).rotatedX >= rotatedX1) {
-                break;
-            }
-            iter1++;
-        }
-        // 2.2 create new candidate point
-        CandidatePoint newCandidatePoint1 = new CandidatePoint();
-        newCandidatePoint1.rotatedX = rotatedX1;
-        newCandidatePoint1.segmentId = segmentId;
-        newCandidatePoint1.startPointFlag = true;
-        // 2.3 insert start point of this segment
-        if (i == 0) {
-            clusterEntry.candidatePoints.add(0, newCandidatePoint1);
-        } else if (i >= clusterEntry.candidatePoints.size()) {
-            clusterEntry.candidatePoints.add(newCandidatePoint1);
-        } else {
-            clusterEntry.candidatePoints.add(iter1, newCandidatePoint1);
-        }
-
-        // the insertion of end point is the same as above
-        int iter2 = 0, j;
-        for (j = 0; j < clusterEntry.candidatePoints.size(); j++) {
-            if (clusterEntry.candidatePoints.get(iter2).rotatedX >= rotatedX2) {
-                break;
-            }
-            iter2++;
-        }
-        CandidatePoint newCandidatePoint2 = new CandidatePoint();
-        newCandidatePoint2.rotatedX = rotatedX2;
-        newCandidatePoint2.segmentId = segmentId;
-        newCandidatePoint2.startPointFlag = false;
-        if (j == 0) {
-            clusterEntry.candidatePoints.add(0, newCandidatePoint2);
-        } else if (j >= clusterEntry.candidatePoints.size()) {
-            clusterEntry.candidatePoints.add(newCandidatePoint2);
-        } else {
-            clusterEntry.candidatePoints.add(iter2, newCandidatePoint2);
-        }
-
-        // 3. update trajectory info of cluster
-        String tid = segments.get(segmentId).getTid();
-        if (!clusterEntry.trajIds.contains(tid)) {
-            clusterEntry.trajIds.add(tid);
-            clusterEntry.trajNumber++;
-        }
     }
 
     private static double GET_X_ROTATION(double _x, double _y, double _cos, double _sin) {
@@ -325,9 +226,6 @@ public class TrajectoryRepresentative {
         return ((_x) * (_sin) + (_y) * (_cos));
     }
 
-    /**
-     * segment cluster info
-     */
     static class SegmentCluster {
         /**
          * cluster id
@@ -338,25 +236,21 @@ public class TrajectoryRepresentative {
          */
         int segmentNumber;
         /**
-         * the number of trajectories
-         */
-        int trajNumber;
-        /**
          * ids of containing trajectories
          */
-        ArrayList<String> trajIds = new ArrayList<>();
-        /**
-         * ths number of representative points
-         */
-        int repPointNumber;
+        HashSet<String> trajIds = new HashSet<>();
         /**
          * representative points
          */
-        ArrayList<Point> repPoints = new ArrayList<>();
+        ArrayList<Point> representativePoints = new ArrayList<>();
         /**
          * candidate representative point
          */
-        ArrayList<CandidatePoint> candidatePoints = new ArrayList<>();
+        ArrayList<RotatedPoint> rotatedPoints = new ArrayList<>();
+        /**
+         * rotated segments of cluster
+         */
+        ArrayList<RotatedSegment> clusterRotatedSegments = new ArrayList<>();
         /**
          * can form a representative trajectory or not
          */
@@ -371,10 +265,28 @@ public class TrajectoryRepresentative {
         double cosTheta, sinTheta;
     }
 
-    /**
-     * start or end point of segment
-     */
-    static class CandidatePoint {
+    static class RotatedSegment {
+        /**
+         * rotated x value of start point
+         */
+        double rotatedStartX;
+        /**
+         * rotated x value of end point
+         */
+        double rotatedEndX;
+        /**
+         * segment id
+         */
+        int segmentId;
+
+        public RotatedSegment(double rotatedStartX, double rotatedEndX, int segmentId) {
+            this.rotatedStartX = rotatedStartX;
+            this.rotatedEndX = rotatedEndX;
+            this.segmentId = segmentId;
+        }
+    }
+
+    static class RotatedPoint {
         /**
          * rotated x value
          */
@@ -383,9 +295,10 @@ public class TrajectoryRepresentative {
          * segment id
          */
         int segmentId;
-        /**
-         * is a start point
-         */
-        boolean startPointFlag;
+
+        public RotatedPoint(double rotatedX, int segmentId) {
+            this.rotatedX = rotatedX;
+            this.segmentId = segmentId;
+        }
     }
 }

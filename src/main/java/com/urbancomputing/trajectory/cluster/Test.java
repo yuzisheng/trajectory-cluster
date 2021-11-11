@@ -21,6 +21,7 @@ import java.util.ArrayList;
 public class Test {
     static int MDL_COST_WANTAGE = 25;
     static double MIN_SEGMENT_LENGTH = 50.0;
+    static double MIN_SMOOTHING_LENGTH = 50.0 / 1.414;
 
     public static void main(String[] args) throws Exception {
         // initialize data
@@ -51,10 +52,10 @@ public class Test {
         if (segments.size() != 3373) {
             throw new Exception("error encounter in the step of trajectory partition");
         }
-        // second: trajectory cluster
+        // second: trajectory cluster including noise
         ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, 25.0, 5);
         // third: compute representative trajectory
-        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, MIN_SEGMENT_LENGTH, 5);
+        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, MIN_SMOOTHING_LENGTH, 5, 5);
 
         // trajectory visualization
         TrajectoryFrame frame = new TrajectoryFrame(trajs, null, representativeTrajs);

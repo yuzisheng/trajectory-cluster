@@ -20,17 +20,12 @@ public class TrajectoryPartition {
      */
     private static Trajectory traj;
     /**
-     * wantage to make up no partition mdl cost
-     */
-    private static int mldCostWantage;
-    /**
      * minimum length threshold to filter short segments
      */
     private static double minSegmentLength;
 
     public static ArrayList<Segment> partition(Trajectory traj, int mldCostWantage, double minSegmentLength) throws Exception {
         TrajectoryPartition.traj = traj;
-        TrajectoryPartition.mldCostWantage = mldCostWantage;
         TrajectoryPartition.minSegmentLength = minSegmentLength;
 
         int pointNumber = traj.getPointNumber();
@@ -51,7 +46,7 @@ public class TrajectoryPartition {
             parMDLCost = computeParModelCost(startIndex, currIndex) + computeEncodingCost(startIndex, currIndex);
             // L(D|H)=0 when there is no characteristic point between pi and pj
             noParMDLCost = computeNoParModelCost(startIndex, currIndex);
-            if (parMDLCost > noParMDLCost + TrajectoryPartition.mldCostWantage) {
+            if (parMDLCost > noParMDLCost) {
                 characteristicPoints.add(traj.getPoint(currIndex - 1));
                 startIndex = currIndex - 1;
                 length = 1;

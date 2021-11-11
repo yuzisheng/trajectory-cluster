@@ -24,7 +24,7 @@ public class TrajectoryPartition {
      */
     private static double minSegmentLength;
 
-    public static ArrayList<Segment> partition(Trajectory traj, int mldCostWantage, double minSegmentLength) throws Exception {
+    public static ArrayList<Segment> partition(Trajectory traj, double minSegmentLength) throws Exception {
         TrajectoryPartition.traj = traj;
         TrajectoryPartition.minSegmentLength = minSegmentLength;
 

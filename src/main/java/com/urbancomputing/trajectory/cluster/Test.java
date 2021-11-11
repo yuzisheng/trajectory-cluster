@@ -19,9 +19,17 @@ import java.util.ArrayList;
  * @date 2021/11/8
  */
 public class Test {
-    static int MDL_COST_WANTAGE = 25;
-    static double MIN_SEGMENT_LENGTH = 50.0;
-    static double MIN_SMOOTHING_LENGTH = 50.0 / 1.414;
+    // trajectory partition parameters
+    static double PARTITION_MIN_SEGMENT_LENGTH = 50.0;
+
+    // segments dbscan cluster parameters
+    static double DBSCAN_EPS = 25.0;
+    static int DBSCAN_MIN_NUM = 5;
+
+    // compute representative trajectory parameters
+    static double REP_MIN_SMOOTHING_LENGTH = 30.0;
+    static int REP_MIN_TRAJ_NUM_FOR_CLUSTER = 10;
+    static int REP_MIN_SEGMENT_NUM_FOR_SWEEP = 10;
 
     public static void main(String[] args) throws Exception {
         // initialize data
@@ -47,15 +55,16 @@ public class Test {
         // first: trajectory partition
         ArrayList<Segment> segments = new ArrayList<>();
         for (Trajectory traj : trajs) {
-            segments.addAll(TrajectoryPartition.partition(traj, MDL_COST_WANTAGE, MIN_SEGMENT_LENGTH));
+            segments.addAll(TrajectoryPartition.partition(traj, PARTITION_MIN_SEGMENT_LENGTH));
         }
-        if (segments.size() != 3373) {
+        System.out.println(segments.size());
+        if (segments.size() != 3226) {
             throw new Exception("error encounter in the step of trajectory partition");
         }
         // second: trajectory cluster including noise
-        ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, 25.0, 5);
+        ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, DBSCAN_EPS, DBSCAN_MIN_NUM);
         // third: compute representative trajectory
-        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, MIN_SMOOTHING_LENGTH, 5, 5);
+        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, REP_MIN_SMOOTHING_LENGTH, REP_MIN_TRAJ_NUM_FOR_CLUSTER, REP_MIN_SEGMENT_NUM_FOR_SWEEP);
 
         // trajectory visualization
         TrajectoryFrame frame = new TrajectoryFrame(trajs, null, representativeTrajs);

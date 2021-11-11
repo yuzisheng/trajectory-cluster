@@ -78,8 +78,8 @@ public class DistanceUtil {
      */
     public static double computeAngleDistance(Segment s1, Segment s2) {
         for (int i = 0; i < POINT_DIM; i++) {
-            vector1[i] = s1.getEndPoint().getCoord(i) - s1.getStartPoint().getCoord(i);
-            vector2[i] = s2.getEndPoint().getCoord(i) - s2.getStartPoint().getCoord(i);
+            vector1[i] = s1.getCoord(i + POINT_DIM) - s1.getCoord(i);
+            vector2[i] = s2.getCoord(i + POINT_DIM) - s2.getCoord(i);
         }
         double vectorLength1 = computeVectorLength(vector1);
         double vectorLength2 = computeVectorLength(vector2);

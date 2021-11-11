@@ -65,7 +65,7 @@ public class TrajectoryRepresentative {
             int clusterId = clusterIds.get(i);
             if (clusterId >= 0) {
                 for (int j = 0; j < POINT_DIM; j++) {
-                    double vectorValue = segments.get(i).getEndPoint().getCoord(j) - segments.get(i).getStartPoint().getCoord(j);
+                    double vectorValue = segments.get(i).getCoord(j + POINT_DIM) - segments.get(i).getCoord(j);
                     double currSum = segmentClusters[clusterId].avgDirectionVector[j] + vectorValue;
                     segmentClusters[clusterId].avgDirectionVector[j] = currSum;
                 }
@@ -202,10 +202,10 @@ public class TrajectoryRepresentative {
      */
     private static Point getSweepPointOfSegment(SegmentCluster clusterEntry, double currXValue, int segmentId) {
         Segment segment = segments.get(segmentId);
-        double rotatedX1 = GET_X_ROTATION(segment.getStartPoint().getCoord(0), segment.getStartPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
-        double rotatedX2 = GET_X_ROTATION(segment.getEndPoint().getCoord(0), segment.getEndPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
-        double rotatedY1 = GET_Y_ROTATION(segment.getStartPoint().getCoord(0), segment.getStartPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
-        double rotatedY2 = GET_Y_ROTATION(segment.getEndPoint().getCoord(0), segment.getEndPoint().getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
+        double rotatedX1 = GET_X_ROTATION(segment.getCoord(0), segment.getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
+        double rotatedX2 = GET_X_ROTATION(segment.getCoord(POINT_DIM), segment.getCoord(1 + POINT_DIM), clusterEntry.cosTheta, clusterEntry.sinTheta);
+        double rotatedY1 = GET_Y_ROTATION(segment.getCoord(0), segment.getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
+        double rotatedY2 = GET_Y_ROTATION(segment.getCoord(POINT_DIM), segment.getCoord(1 + POINT_DIM), clusterEntry.cosTheta, clusterEntry.sinTheta);
         double coefficient = (currXValue - rotatedX1) / (rotatedX2 - rotatedX1);
         return new Point(currXValue, rotatedY1 + coefficient * (rotatedY2 - rotatedY1));
     }

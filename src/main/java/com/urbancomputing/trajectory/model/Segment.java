@@ -1,4 +1,4 @@
-package com.urbancomputing.trajectory.cluster.model;
+package com.urbancomputing.trajectory.model;
 
 /**
  * Segment Class

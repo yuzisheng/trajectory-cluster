@@ -1,12 +1,10 @@
-package com.urbancomputing.trajectory.cluster.util;
+package com.urbancomputing.trajectory.cluster;
 
-import com.urbancomputing.trajectory.cluster.model.Point;
-import com.urbancomputing.trajectory.cluster.model.Segment;
-import com.urbancomputing.trajectory.cluster.model.Trajectory;
+import com.urbancomputing.trajectory.model.Point;
+import com.urbancomputing.trajectory.model.Segment;
+import com.urbancomputing.trajectory.model.Trajectory;
 
 import java.util.ArrayList;
-
-import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.*;
 
 /**
  * trajectory partition
@@ -16,18 +14,28 @@ import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.*;
  */
 public class TrajectoryPartition {
     /**
-     * raw trajectory
+     * raw trajectories
      */
-    private static Trajectory traj;
+    private final ArrayList<Trajectory> trajs;
     /**
      * minimum length threshold to filter short segments
      */
-    private static double minSegmentLength;
+    private final double minSegmentLength;
 
-    public static ArrayList<Segment> partition(Trajectory traj, double minSegmentLength) throws Exception {
-        TrajectoryPartition.traj = traj;
-        TrajectoryPartition.minSegmentLength = minSegmentLength;
+    public TrajectoryPartition(ArrayList<Trajectory> trajs, double minSegmentLength) {
+        this.trajs = trajs;
+        this.minSegmentLength = minSegmentLength;
+    }
 
+    public ArrayList<Segment> partition() throws Exception {
+        ArrayList<Segment> partitionedSegments = new ArrayList<>();
+        for (Trajectory traj : trajs) {
+            partitionedSegments.addAll(partitionOneTraj(traj));
+        }
+        return partitionedSegments;
+    }
+
+    private ArrayList<Segment> partitionOneTraj(Trajectory traj) throws Exception {
         int pointNumber = traj.getPointNumber();
         if (pointNumber < 2) {
             throw new Exception("trajectory to be partitioned shall contain at least two points");
@@ -43,9 +51,9 @@ public class TrajectoryPartition {
         do {
             currIndex = startIndex + length;
             // MDLCost = L(H) + L(D|H)
-            parMDLCost = computeParModelCost(startIndex, currIndex) + computeEncodingCost(startIndex, currIndex);
+            parMDLCost = computeParModelCost(traj, startIndex, currIndex) + computeEncodingCost(traj, startIndex, currIndex);
             // L(D|H)=0 when there is no characteristic point between pi and pj
-            noParMDLCost = computeNoParModelCost(startIndex, currIndex);
+            noParMDLCost = computeNoParModelCost(traj, startIndex, currIndex);
             if (parMDLCost > noParMDLCost) {
                 characteristicPoints.add(traj.getPoint(currIndex - 1));
                 startIndex = currIndex - 1;
@@ -61,7 +69,7 @@ public class TrajectoryPartition {
         ArrayList<Segment> segments = new ArrayList<>();
         for (int i = 0; i < characteristicPoints.size() - 1; i++) {
             Segment s = new Segment(characteristicPoints.get(i), characteristicPoints.get(i + 1), traj.getTid());
-            if (s.length() >= TrajectoryPartition.minSegmentLength) {
+            if (s.length() >= minSegmentLength) {
                 segments.add(s);
             }
         }
@@ -71,22 +79,22 @@ public class TrajectoryPartition {
     /**
      * compute L(H) assuming pi and pj are only two characteristic points
      */
-    private static int computeParModelCost(int i, int j) {
-        double distance = computePointToPointDistance(traj.getPoint(i), traj.getPoint(j));
+    private static int computeParModelCost(Trajectory traj, int i, int j) {
+        double distance = DistanceUtil.computePointToPointDistance(traj.getPoint(i), traj.getPoint(j));
         if (distance < 1.0) distance = 1.0;
-        return (int) Math.ceil(log2(distance));
+        return (int) Math.ceil(DistanceUtil.log2(distance));
     }
 
     /**
      * compute L(H) assuming no characteristic point between pi and pj
      */
-    private static int computeNoParModelCost(int i, int j) {
+    private static int computeNoParModelCost(Trajectory traj, int i, int j) {
         int modelCost = 0;
         double distance;
         for (int k = i; k < j; k++) {
-            distance = computePointToPointDistance(traj.getPoint(k), traj.getPoint(k + 1));
+            distance = DistanceUtil.computePointToPointDistance(traj.getPoint(k), traj.getPoint(k + 1));
             if (distance < 1.0) distance = 1.0;
-            modelCost += (int) Math.ceil(log2(distance));
+            modelCost += (int) Math.ceil(DistanceUtil.log2(distance));
         }
         return modelCost;
     }
@@ -94,19 +102,19 @@ public class TrajectoryPartition {
     /**
      * compute L(D|H) assuming pi and pj are only two characteristic points
      */
-    private static int computeEncodingCost(int i, int j) {
+    private static int computeEncodingCost(Trajectory traj, int i, int j) {
         int encodingCost = 0;
         Segment s1 = new Segment(traj.getPoint(i), traj.getPoint(j));
         Segment s2;
         double perDistance, angleDistance;
         for (int k = i; k < j; k++) {
             s2 = new Segment(traj.getPoint(k), traj.getPoint(k + 1));
-            perDistance = computePerpendicularDistance(s1, s2);
-            angleDistance = computeAngleDistance(s1, s2);
+            perDistance = DistanceUtil.computePerpendicularDistance(s1, s2);
+            angleDistance = DistanceUtil.computeAngleDistance(s1, s2);
 
             if (perDistance < 1.0) perDistance = 1.0;
             if (angleDistance < 1.0) angleDistance = 1.0;
-            encodingCost += ((int) Math.ceil(log2(perDistance)) + (int) Math.ceil(log2(angleDistance)));
+            encodingCost += ((int) Math.ceil(DistanceUtil.log2(perDistance)) + (int) Math.ceil(DistanceUtil.log2(angleDistance)));
         }
         return encodingCost;
     }

@@ -1,8 +1,10 @@
-package com.urbancomputing.trajectory.cluster.util;
+package com.urbancomputing.trajectory.cluster;
 
 import java.util.*;
-import com.urbancomputing.trajectory.cluster.model.Segment;
-import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.computeSegmentToSegmentDistance;
+
+import com.urbancomputing.trajectory.model.Segment;
+
+import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeSegmentToSegmentDistance;
 
 /**
  * segment cluster
@@ -14,34 +16,38 @@ public class TrajectoryDBScan {
     /**
      * segments to be clustered
      */
-    static List<Segment> segments;
+    List<Segment> segments;
     /**
      * eps
      */
-    static double eps;
+    double eps;
     /**
      * minimum number
      */
-    static int minNum;
+    int minNum;
     /**
      * cluster ids
      */
-    static ArrayList<Integer> clusterIds;
+    ArrayList<Integer> clusterIds;
     /**
      * unclassified point id
      */
-    static private final int UNCLASSIFIED_ID = -2;
+    private final int UNCLASSIFIED_ID = -2;
     /**
      * noise point id
      */
-    static private final int NOISE_ID = -1;
+    private final int NOISE_ID = -1;
 
-    public static ArrayList<Integer> dbscan(List<Segment> segments, Double eps, int minNum) {
-        TrajectoryDBScan.segments = segments;
-        TrajectoryDBScan.eps = eps;
-        TrajectoryDBScan.minNum = minNum;
-        TrajectoryDBScan.clusterIds = new ArrayList<>(Collections.nCopies(segments.size(), UNCLASSIFIED_ID));
+    public TrajectoryDBScan(List<Segment> segments, Double eps, int minNum) {
+        this.segments = segments;
+        this.eps = eps;
+        this.minNum = minNum;
+    }
 
+    public ArrayList<Integer> cluster() {
+        // initialize items with unclassified
+        clusterIds = new ArrayList<>(Collections.nCopies(segments.size(), UNCLASSIFIED_ID));
+        // dbscan
         int currentId = 0;
         for (int i = 0; i < segments.size(); i++) {
             if (clusterIds.get(i) == UNCLASSIFIED_ID && expandDense(i, currentId)) {
@@ -51,7 +57,18 @@ public class TrajectoryDBScan {
         return clusterIds;
     }
 
-    private static boolean expandDense(int segmentIndex, int currentId) {
+    public int getClusterNum() throws Exception {
+        if (clusterIds == null) {
+            throw new Exception("clustering is not running yet");
+        }
+        if (clusterIds.contains(NOISE_ID)) {
+            return (new HashSet<>(clusterIds)).size() - 1;
+        } else {
+            return (new HashSet<>(clusterIds)).size();
+        }
+    }
+
+    private boolean expandDense(int segmentIndex, int currentId) {
         Set<Integer> neighborhoods1 = new HashSet<>();
         Set<Integer> neighborhoods2 = new HashSet<>();
 
@@ -84,7 +101,7 @@ public class TrajectoryDBScan {
         return true;
     }
 
-    private static void computeEpsNeighborhood(int i, Set<Integer> neighborhoods) {
+    private void computeEpsNeighborhood(int i, Set<Integer> neighborhoods) {
         neighborhoods.clear();
         for (int j = 0; j < segments.size(); j++) {
             double distance = computeSegmentToSegmentDistance(segments.get(i), segments.get(j));

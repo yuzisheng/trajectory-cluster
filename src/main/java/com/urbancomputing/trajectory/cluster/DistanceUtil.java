@@ -1,7 +1,7 @@
-package com.urbancomputing.trajectory.cluster.util;
+package com.urbancomputing.trajectory.cluster;
 
-import com.urbancomputing.trajectory.cluster.model.Point;
-import com.urbancomputing.trajectory.cluster.model.Segment;
+import com.urbancomputing.trajectory.model.Point;
+import com.urbancomputing.trajectory.model.Segment;
 
 /**
  * distance util
@@ -15,7 +15,7 @@ public class DistanceUtil {
      */
     static final int POINT_DIM = 2;
     /**
-     * temp variable
+     * some temp variables
      */
     static double coefficient;
     static double[] vector1 = new double[2];

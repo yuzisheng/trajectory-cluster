@@ -1,9 +1,9 @@
 package com.urbancomputing.trajectory.cluster;
 
 import com.sun.deploy.panel.JavaPanel;
-import com.urbancomputing.trajectory.cluster.model.Point;
-import com.urbancomputing.trajectory.cluster.model.Segment;
-import com.urbancomputing.trajectory.cluster.model.Trajectory;
+import com.urbancomputing.trajectory.model.Point;
+import com.urbancomputing.trajectory.model.Segment;
+import com.urbancomputing.trajectory.model.Trajectory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,7 +17,7 @@ import java.util.List;
  * @author yuzisheng
  * @date 2021/11/8
  */
-public class TrajectoryFrame extends JFrame {
+public class TrajectoryVisualizeFrame extends JFrame {
     /**
      * raw trajectories
      */
@@ -31,7 +31,7 @@ public class TrajectoryFrame extends JFrame {
      */
     List<Trajectory> representativeTrajs;
 
-    public TrajectoryFrame(List<Trajectory> rawTrajs, List<Segment> segments, List<Trajectory> representativeTrajs) {
+    public TrajectoryVisualizeFrame(List<Trajectory> rawTrajs, List<Segment> segments, List<Trajectory> representativeTrajs) {
         this.rawTrajs = rawTrajs;
         this.segments = segments;
         this.representativeTrajs = representativeTrajs;

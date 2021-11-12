@@ -1,11 +1,8 @@
 package com.urbancomputing.trajectory.cluster;
 
-import com.urbancomputing.trajectory.cluster.model.Point;
-import com.urbancomputing.trajectory.cluster.model.Segment;
-import com.urbancomputing.trajectory.cluster.model.Trajectory;
-import com.urbancomputing.trajectory.cluster.util.TrajectoryDBScan;
-import com.urbancomputing.trajectory.cluster.util.TrajectoryPartition;
-import com.urbancomputing.trajectory.cluster.util.TrajectoryRepresentative;
+import com.urbancomputing.trajectory.model.Point;
+import com.urbancomputing.trajectory.model.Segment;
+import com.urbancomputing.trajectory.model.Trajectory;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -13,12 +10,12 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 /**
- * Test
+ * Main
  *
  * @author yuzisheng
  * @date 2021/11/8
  */
-public class Test {
+public class Main {
     // trajectory partition parameters
     static double PARTITION_MIN_SEGMENT_LENGTH = 50.0;
 
@@ -53,21 +50,19 @@ public class Test {
         }
 
         // first: trajectory partition
-        ArrayList<Segment> segments = new ArrayList<>();
-        for (Trajectory traj : trajs) {
-            segments.addAll(TrajectoryPartition.partition(traj, PARTITION_MIN_SEGMENT_LENGTH));
-        }
-        System.out.println(segments.size());
-        if (segments.size() != 3226) {
-            throw new Exception("error encounter in the step of trajectory partition");
-        }
+        TrajectoryPartition trajectoryPartition = new TrajectoryPartition(trajs, PARTITION_MIN_SEGMENT_LENGTH);
+        ArrayList<Segment> segments = trajectoryPartition.partition();
         // second: trajectory cluster including noise
-        ArrayList<Integer> clusterIds = TrajectoryDBScan.dbscan(segments, DBSCAN_EPS, DBSCAN_MIN_NUM);
+        TrajectoryDBScan trajectoryDBScan = new TrajectoryDBScan(segments, DBSCAN_EPS, DBSCAN_MIN_NUM);
+        ArrayList<Integer> clusterIds = trajectoryDBScan.cluster();
+        int clusterNum = trajectoryDBScan.getClusterNum();
         // third: compute representative trajectory
-        ArrayList<Trajectory> representativeTrajs = TrajectoryRepresentative.construct(segments, clusterIds, REP_MIN_SMOOTHING_LENGTH, REP_MIN_TRAJ_NUM_FOR_CLUSTER, REP_MIN_SEGMENT_NUM_FOR_SWEEP);
+        TrajectoryRepresentative trajectoryRepresentative = new TrajectoryRepresentative(segments, clusterIds, clusterNum,
+                REP_MIN_SMOOTHING_LENGTH, REP_MIN_TRAJ_NUM_FOR_CLUSTER, REP_MIN_SEGMENT_NUM_FOR_SWEEP);
+        ArrayList<Trajectory> representativeTrajs = trajectoryRepresentative.compute();
 
         // trajectory visualization
-        TrajectoryFrame frame = new TrajectoryFrame(trajs, null, representativeTrajs);
+        TrajectoryVisualizeFrame frame = new TrajectoryVisualizeFrame(trajs, null, representativeTrajs);
         frame.draw();
     }
 }

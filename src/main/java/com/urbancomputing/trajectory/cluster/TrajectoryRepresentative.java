@@ -1,13 +1,13 @@
-package com.urbancomputing.trajectory.cluster.util;
+package com.urbancomputing.trajectory.cluster;
 
-import com.urbancomputing.trajectory.cluster.model.Point;
-import com.urbancomputing.trajectory.cluster.model.Segment;
-import com.urbancomputing.trajectory.cluster.model.Trajectory;
+import com.urbancomputing.trajectory.model.Point;
+import com.urbancomputing.trajectory.model.Segment;
+import com.urbancomputing.trajectory.model.Trajectory;
 
 import java.util.*;
 
-import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.computeInnerProduct;
-import static com.urbancomputing.trajectory.cluster.util.DistanceUtil.computeVectorLength;
+import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeInnerProduct;
+import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeVectorLength;
 
 /**
  * compute representative trajectories
@@ -19,41 +19,45 @@ public class TrajectoryRepresentative {
     /**
      * dimension of point
      */
-    static final int POINT_DIM = 2;
+    final int POINT_DIM = 2;
     /**
      * minimum trajectory number for a cluster to construct representative trajectory
      */
-    static int minTrajNumForCluster;
+    int minTrajNumForCluster;
     /**
      * minimum segment number for sweep line to construct representative points (minLns in the paper)
      */
-    static int minSegmentNumForSweep;
+    int minSegmentNumForSweep;
     /**
      * minimum smoothing length to filter close representative points (gamma in the paper)
      */
-    static double minSmoothingLength;
+    double minSmoothingLength;
 
-    static List<Segment> segments;
-    static List<Integer> clusterIds;
-    static SegmentCluster[] segmentClusters;
+    List<Segment> segments;
+    List<Integer> clusterIds;
+    int clusterNum;
+    SegmentCluster[] segmentClusters;
 
-    public static ArrayList<Trajectory> construct(List<Segment> segments,
-                                                  List<Integer> clusterIds,
-                                                  double minSmoothingLength,
-                                                  int minTrajNumForCluster,
-                                                  int minSegmentNumForSweep) {
-        TrajectoryRepresentative.segments = segments;
-        TrajectoryRepresentative.clusterIds = clusterIds;
-        TrajectoryRepresentative.minSmoothingLength = minSmoothingLength;
-        TrajectoryRepresentative.minTrajNumForCluster = minTrajNumForCluster;
-        TrajectoryRepresentative.minSegmentNumForSweep = minSegmentNumForSweep;
+    public TrajectoryRepresentative(List<Segment> segments,
+                                    List<Integer> clusterIds,
+                                    int clusterNum,
+                                    double minSmoothingLength,
+                                    int minTrajNumForCluster,
+                                    int minSegmentNumForSweep) {
+        this.segments = segments;
+        this.clusterIds = clusterIds;
+        this.clusterNum = clusterNum;
+        this.minSmoothingLength = minSmoothingLength;
+        this.minTrajNumForCluster = minTrajNumForCluster;
+        this.minSegmentNumForSweep = minSegmentNumForSweep;
+    }
 
+    public ArrayList<Trajectory> compute() {
         // noise is exclusive
-        int clusterNumber = (new HashSet<>(clusterIds)).size() - 1;
-        TrajectoryRepresentative.segmentClusters = new SegmentCluster[clusterNumber];
+        segmentClusters = new SegmentCluster[clusterNum];
 
         // initialize
-        for (int i = 0; i < clusterNumber; i++) {
+        for (int i = 0; i < clusterNum; i++) {
             segmentClusters[i] = new SegmentCluster();
             segmentClusters[i].clusterId = i;
             segmentClusters[i].segmentNumber = 0;
@@ -72,7 +76,7 @@ public class TrajectoryRepresentative {
                 segmentClusters[clusterId].segmentNumber++;
             }
         }
-        for (int i = 0; i < clusterNumber; i++) {
+        for (int i = 0; i < clusterNum; i++) {
             SegmentCluster clusterEntry = segmentClusters[i];
             for (int j = 0; j < POINT_DIM; j++) {
                 clusterEntry.avgDirectionVector[j] /= clusterEntry.segmentNumber;
@@ -83,7 +87,7 @@ public class TrajectoryRepresentative {
         double[] unitVectorX = new double[]{1.0, 0.0};
         double unitVectorXLength = 1.0;
         double cosTheta, sinTheta;
-        for (int i = 0; i < clusterNumber; i++) {
+        for (int i = 0; i < clusterNum; i++) {
             SegmentCluster clusterEntry = segmentClusters[i];
             cosTheta = computeInnerProduct(clusterEntry.avgDirectionVector, unitVectorX) /
                     (computeVectorLength(clusterEntry.avgDirectionVector) * unitVectorXLength);
@@ -118,7 +122,7 @@ public class TrajectoryRepresentative {
         }
 
         // fourth: compute representative trajectory for each cluster
-        for (int i = 0; i < clusterNumber; i++) {
+        for (int i = 0; i < clusterNum; i++) {
             SegmentCluster clusterEntry = segmentClusters[i];
             // a cluster must contain a certain number of different trajectories
             if (clusterEntry.trajIds.size() >= minTrajNumForCluster) {
@@ -130,7 +134,7 @@ public class TrajectoryRepresentative {
         // fifth: convert cluster to trajectory
         int newCurrClusterId = 0;
         ArrayList<Trajectory> representativeTrajs = new ArrayList<>();
-        for (int i = 0; i < clusterNumber; i++) {
+        for (int i = 0; i < clusterNum; i++) {
             if (segmentClusters[i].enabled) {
                 representativeTrajs.add(new Trajectory(Integer.toString(newCurrClusterId), segmentClusters[i].representativePoints));
                 newCurrClusterId++;
@@ -142,7 +146,7 @@ public class TrajectoryRepresentative {
     /**
      * compute representative trajectory
      */
-    private static void computeRepresentativeTrajectory(SegmentCluster clusterEntry) {
+    private void computeRepresentativeTrajectory(SegmentCluster clusterEntry) {
         int sweepSegmentNum;
         double prevRotatedX = 0.0;
         HashSet<Integer> sweepSegmentIds = new HashSet<>();
@@ -175,7 +179,7 @@ public class TrajectoryRepresentative {
     /**
      * get representative point
      */
-    private static Point getRepresentativePoint(SegmentCluster clusterEntry, double currX, Set<Integer> segmentIds) {
+    private Point getRepresentativePoint(SegmentCluster clusterEntry, double currX, Set<Integer> segmentIds) {
         int sweepSegmentNumber = segmentIds.size();
         Point representativePoint = new Point();
         Point sweepPoint;
@@ -200,7 +204,7 @@ public class TrajectoryRepresentative {
     /**
      * get point on the segment according to its x value
      */
-    private static Point getSweepPointOfSegment(SegmentCluster clusterEntry, double currXValue, int segmentId) {
+    private Point getSweepPointOfSegment(SegmentCluster clusterEntry, double currXValue, int segmentId) {
         Segment segment = segments.get(segmentId);
         double rotatedX1 = GET_X_ROTATION(segment.getCoord(0), segment.getCoord(1), clusterEntry.cosTheta, clusterEntry.sinTheta);
         double rotatedX2 = GET_X_ROTATION(segment.getCoord(POINT_DIM), segment.getCoord(1 + POINT_DIM), clusterEntry.cosTheta, clusterEntry.sinTheta);
@@ -210,95 +214,95 @@ public class TrajectoryRepresentative {
         return new Point(currXValue, rotatedY1 + coefficient * (rotatedY2 - rotatedY1));
     }
 
-    private static double GET_X_ROTATION(double _x, double _y, double _cos, double _sin) {
+    private double GET_X_ROTATION(double _x, double _y, double _cos, double _sin) {
         return ((_x) * (_cos) + (_y) * (_sin));
     }
 
-    private static double GET_Y_ROTATION(double _x, double _y, double _cos, double _sin) {
+    private double GET_Y_ROTATION(double _x, double _y, double _cos, double _sin) {
         return (-(_x) * (_sin) + (_y) * (_cos));
     }
 
-    private static double GET_X_REV_ROTATION(double _x, double _y, double _cos, double _sin) {
+    private double GET_X_REV_ROTATION(double _x, double _y, double _cos, double _sin) {
         return ((_x) * (_cos) - (_y) * (_sin));
     }
 
-    private static double GET_Y_REV_ROTATION(double _x, double _y, double _cos, double _sin) {
+    private double GET_Y_REV_ROTATION(double _x, double _y, double _cos, double _sin) {
         return ((_x) * (_sin) + (_y) * (_cos));
     }
+}
 
-    static class SegmentCluster {
-        /**
-         * cluster id
-         */
-        int clusterId;
-        /**
-         * the number of segments
-         */
-        int segmentNumber;
-        /**
-         * ids of containing trajectories
-         */
-        HashSet<String> trajIds = new HashSet<>();
-        /**
-         * representative points
-         */
-        ArrayList<Point> representativePoints = new ArrayList<>();
-        /**
-         * candidate representative point
-         */
-        ArrayList<RotatedPoint> rotatedPoints = new ArrayList<>();
-        /**
-         * rotated segments of cluster
-         */
-        ArrayList<RotatedSegment> clusterRotatedSegments = new ArrayList<>();
-        /**
-         * can form a representative trajectory or not
-         */
-        boolean enabled;
-        /**
-         * average direction vector
-         */
-        double[] avgDirectionVector = new double[2];
-        /**
-         * other temp variable
-         */
-        double cosTheta, sinTheta;
+class SegmentCluster {
+    /**
+     * cluster id
+     */
+    int clusterId;
+    /**
+     * the number of segments
+     */
+    int segmentNumber;
+    /**
+     * ids of containing trajectories
+     */
+    HashSet<String> trajIds = new HashSet<>();
+    /**
+     * representative points
+     */
+    ArrayList<Point> representativePoints = new ArrayList<>();
+    /**
+     * candidate representative point
+     */
+    ArrayList<RotatedPoint> rotatedPoints = new ArrayList<>();
+    /**
+     * rotated segments of cluster
+     */
+    ArrayList<RotatedSegment> clusterRotatedSegments = new ArrayList<>();
+    /**
+     * can form a representative trajectory or not
+     */
+    boolean enabled;
+    /**
+     * average direction vector
+     */
+    double[] avgDirectionVector = new double[2];
+    /**
+     * other temp variable
+     */
+    double cosTheta, sinTheta;
+}
+
+class RotatedSegment {
+    /**
+     * rotated x value of start point
+     */
+    double rotatedStartX;
+    /**
+     * rotated x value of end point
+     */
+    double rotatedEndX;
+    /**
+     * segment id
+     */
+    int segmentId;
+
+    public RotatedSegment(double rotatedStartX, double rotatedEndX, int segmentId) {
+        this.rotatedStartX = rotatedStartX;
+        this.rotatedEndX = rotatedEndX;
+        this.segmentId = segmentId;
     }
+}
 
-    static class RotatedSegment {
-        /**
-         * rotated x value of start point
-         */
-        double rotatedStartX;
-        /**
-         * rotated x value of end point
-         */
-        double rotatedEndX;
-        /**
-         * segment id
-         */
-        int segmentId;
+class RotatedPoint {
+    /**
+     * rotated x value
+     */
+    double rotatedX;
+    /**
+     * segment id
+     */
+    int segmentId;
 
-        public RotatedSegment(double rotatedStartX, double rotatedEndX, int segmentId) {
-            this.rotatedStartX = rotatedStartX;
-            this.rotatedEndX = rotatedEndX;
-            this.segmentId = segmentId;
-        }
-    }
-
-    static class RotatedPoint {
-        /**
-         * rotated x value
-         */
-        double rotatedX;
-        /**
-         * segment id
-         */
-        int segmentId;
-
-        public RotatedPoint(double rotatedX, int segmentId) {
-            this.rotatedX = rotatedX;
-            this.segmentId = segmentId;
-        }
+    public RotatedPoint(double rotatedX, int segmentId) {
+        this.rotatedX = rotatedX;
+        this.segmentId = segmentId;
     }
 }

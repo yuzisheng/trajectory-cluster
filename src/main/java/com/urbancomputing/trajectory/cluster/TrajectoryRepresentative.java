@@ -6,8 +6,8 @@ import com.urbancomputing.trajectory.model.Trajectory;
 
 import java.util.*;
 
-import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeInnerProduct;
-import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeVectorLength;
+import static com.urbancomputing.trajectory.cluster.TrajectoryDistance.computeInnerProduct;
+import static com.urbancomputing.trajectory.cluster.TrajectoryDistance.computeVectorLength;
 
 /**
  * compute representative trajectories

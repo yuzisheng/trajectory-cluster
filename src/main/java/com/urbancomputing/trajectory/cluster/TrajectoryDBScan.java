@@ -4,7 +4,7 @@ import java.util.*;
 
 import com.urbancomputing.trajectory.model.Segment;
 
-import static com.urbancomputing.trajectory.cluster.DistanceUtil.computeSegmentToSegmentDistance;
+import static com.urbancomputing.trajectory.cluster.TrajectoryDistance.computeSegmentToSegmentDistance;
 
 /**
  * segment cluster

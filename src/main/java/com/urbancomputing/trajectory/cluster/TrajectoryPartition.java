@@ -80,9 +80,9 @@ public class TrajectoryPartition {
      * compute L(H) assuming pi and pj are only two characteristic points
      */
     private static int computeParModelCost(Trajectory traj, int i, int j) {
-        double distance = DistanceUtil.computePointToPointDistance(traj.getPoint(i), traj.getPoint(j));
+        double distance = TrajectoryDistance.computePointToPointDistance(traj.getPoint(i), traj.getPoint(j));
         if (distance < 1.0) distance = 1.0;
-        return (int) Math.ceil(DistanceUtil.log2(distance));
+        return (int) Math.ceil(TrajectoryDistance.log2(distance));
     }
 
     /**
@@ -92,9 +92,9 @@ public class TrajectoryPartition {
         int modelCost = 0;
         double distance;
         for (int k = i; k < j; k++) {
-            distance = DistanceUtil.computePointToPointDistance(traj.getPoint(k), traj.getPoint(k + 1));
+            distance = TrajectoryDistance.computePointToPointDistance(traj.getPoint(k), traj.getPoint(k + 1));
             if (distance < 1.0) distance = 1.0;
-            modelCost += (int) Math.ceil(DistanceUtil.log2(distance));
+            modelCost += (int) Math.ceil(TrajectoryDistance.log2(distance));
         }
         return modelCost;
     }
@@ -109,12 +109,12 @@ public class TrajectoryPartition {
         double perDistance, angleDistance;
         for (int k = i; k < j; k++) {
             s2 = new Segment(traj.getPoint(k), traj.getPoint(k + 1));
-            perDistance = DistanceUtil.computePerpendicularDistance(s1, s2);
-            angleDistance = DistanceUtil.computeAngleDistance(s1, s2);
+            perDistance = TrajectoryDistance.computePerpendicularDistance(s1, s2);
+            angleDistance = TrajectoryDistance.computeAngleDistance(s1, s2);
 
             if (perDistance < 1.0) perDistance = 1.0;
             if (angleDistance < 1.0) angleDistance = 1.0;
-            encodingCost += ((int) Math.ceil(DistanceUtil.log2(perDistance)) + (int) Math.ceil(DistanceUtil.log2(angleDistance)));
+            encodingCost += ((int) Math.ceil(TrajectoryDistance.log2(perDistance)) + (int) Math.ceil(TrajectoryDistance.log2(angleDistance)));
         }
         return encodingCost;
     }

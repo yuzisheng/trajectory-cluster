@@ -9,7 +9,7 @@ import com.urbancomputing.trajectory.model.Segment;
  * @author yuzisheng
  * @date 2021/11/5
  */
-public class DistanceUtil {
+public class TrajectoryDistance {
     /**
      * dimension of point
      */

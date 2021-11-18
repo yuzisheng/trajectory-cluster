@@ -10,6 +10,6 @@ This framework of trajectory cluster including three parts: trajectory partition
 
 <img src="./src/main/resources/framework.png" alt="process" style="zoom:80%;"/>
 
-To see the following result , run `Main.java` directly without any dependencies.
+To see the following result , run `TrajectoryClusterTest.java` directly.
 
 <img src="./src/main/resources/result.png" alt="process" style="zoom:60%;"/>
